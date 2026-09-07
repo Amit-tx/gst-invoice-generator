@@ -100,8 +100,8 @@ export default function InvoiceGeneratorClient() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Invoice Generator</h1>
-      <p className="mt-2 text-slate-600">
+      <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)]">Invoice Generator</h1>
+      <p className="mt-2 text-[var(--text-sec)]">
         Fill in your business and customer details to generate a GST-compliant
         invoice with automatic tax calculation.
       </p>
@@ -120,19 +120,19 @@ export default function InvoiceGeneratorClient() {
       {/* Logo + invoice meta */}
       <section className="mt-8 grid sm:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Company logo</label>
+          <label className="block text-sm font-semibold text-[var(--text-main)] mb-2">Company logo</label>
           <div className="flex items-center gap-4">
             {logoDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoDataUrl} alt="Logo preview" className="h-16 w-16 object-contain rounded border border-slate-200" />
+              <img src={logoDataUrl} alt="Logo preview" className="h-16 w-16 object-contain rounded border border-[var(--border)]" />
             ) : (
-              <div className="h-16 w-16 rounded border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs">
+              <div className="h-16 w-16 rounded border border-dashed border-[var(--input-border)] flex items-center justify-center text-[var(--text-sec)] text-xs">
                 No logo
               </div>
             )}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] rounded-lg px-3 py-2 hover:bg-emerald-50"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent)] border border-[var(--accent)] rounded-lg px-3 py-2 hover:bg-indigo-50"
             >
               <Upload size={14} /> Upload logo
             </button>
@@ -174,8 +174,8 @@ export default function InvoiceGeneratorClient() {
         <PartyForm title="Bill To (customer)" party={billTo} onChange={setBillTo} />
         <div>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-slate-800">Ship To</h3>
-            <label className="flex items-center gap-1.5 text-xs text-slate-600">
+            <h3 className="text-sm font-bold text-[var(--text-main)]">Ship To</h3>
+            <label className="flex items-center gap-1.5 text-xs text-[var(--text-sec)]">
               <input
                 type="checkbox"
                 checked={sameAsShipTo}
@@ -190,10 +190,10 @@ export default function InvoiceGeneratorClient() {
 
       {/* Items table */}
       <section className="mt-10">
-        <h3 className="text-sm font-bold text-slate-800 mb-3">Line items</h3>
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <h3 className="text-sm font-bold text-[var(--text-main)] mb-3">Line items</h3>
+        <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
           <table className="w-full text-sm min-w-[760px]">
-            <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+            <thead className="bg-[var(--subtotal-bg)] text-[var(--text-sec)] text-xs uppercase">
               <tr>
                 <th className="text-left px-3 py-3 font-semibold">Description</th>
                 <th className="text-left px-3 py-3 font-semibold">HSN/SAC</th>
@@ -206,13 +206,13 @@ export default function InvoiceGeneratorClient() {
             </thead>
             <tbody>
               {computed.rows.map((row) => (
-                <tr key={row.id} className="border-t border-slate-100">
+                <tr key={row.id} className="border-t border-[var(--border)]">
                   <td className="px-3 py-2">
                     <input
                       value={row.description}
                       onChange={(e) => updateItem(row.id, { description: e.target.value })}
                       placeholder="Item / service"
-                      className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                      className="w-40 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -220,7 +220,7 @@ export default function InvoiceGeneratorClient() {
                       value={row.hsn}
                       onChange={(e) => updateItem(row.id, { hsn: e.target.value })}
                       placeholder="0000"
-                      className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                      className="w-20 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -228,7 +228,7 @@ export default function InvoiceGeneratorClient() {
                       type="number"
                       value={row.qty}
                       onChange={(e) => updateItem(row.id, { qty: parseFloat(e.target.value) || 0 })}
-                      className="w-16 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                      className="w-16 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -236,25 +236,25 @@ export default function InvoiceGeneratorClient() {
                       type="number"
                       value={row.rate}
                       onChange={(e) => updateItem(row.id, { rate: parseFloat(e.target.value) || 0 })}
-                      className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                      className="w-24 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
                     />
                   </td>
                   <td className="px-3 py-2">
                     <select
                       value={row.gstRate}
                       onChange={(e) => updateItem(row.id, { gstRate: parseFloat(e.target.value) })}
-                      className="w-20 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                      className="w-20 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
                     >
                       {GST_SLABS.map((s) => (
                         <option key={s} value={s}>{s}%</option>
                       ))}
                     </select>
                   </td>
-                  <td className="px-3 py-2 text-right font-semibold text-slate-800">
+                  <td className="px-3 py-2 text-right font-semibold text-[var(--text-main)]">
                     {formatINR(row.total)}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <button onClick={() => removeItem(row.id)} className="text-slate-400 hover:text-red-500">
+                    <button onClick={() => removeItem(row.id)} className="text-[var(--text-sec)] hover:text-red-500">
                       <Trash2 size={16} />
                     </button>
                   </td>
@@ -265,7 +265,7 @@ export default function InvoiceGeneratorClient() {
         </div>
         <button
           onClick={addItem}
-          className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] hover:text-[var(--brand-dark)]"
+          className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]"
         >
           <Plus size={16} /> Add item
         </button>
@@ -283,17 +283,17 @@ export default function InvoiceGeneratorClient() {
 
       {/* Totals + download */}
       <section className="mt-8 grid sm:grid-cols-2 gap-4 items-start">
-        <div className="rounded-xl border border-slate-200 p-5 text-sm space-y-2">
+        <div className="rounded-xl border border-[var(--border)] p-5 text-sm space-y-2">
           <Row label="Taxable value" value={formatINR(computed.taxableTotal)} />
           <Row label="Total GST" value={formatINR(computed.taxTotal)} />
           <Row label="Grand total" value={formatINR(computed.grandTotal)} bold />
-          <p className="text-xs text-slate-500 pt-2 border-t border-slate-100 mt-2">
+          <p className="text-xs text-[var(--text-sec)] pt-2 border-t border-[var(--border)] mt-2">
             {numberToWordsINR(computed.grandTotal)}
           </p>
         </div>
         <button
           onClick={handleDownload}
-          className="rounded-lg bg-[var(--brand)] text-white font-semibold px-6 py-4 hover:bg-[var(--brand-dark)] transition-colors inline-flex items-center justify-center gap-2 h-fit"
+          className="rounded-lg bg-[var(--btn-primary)] text-white font-semibold px-6 py-4 hover:bg-[var(--btn-primary-hover)] transition-colors inline-flex items-center justify-center gap-2 h-fit"
         >
           <Download size={18} /> Download PDF Invoice
         </button>
@@ -302,12 +302,12 @@ export default function InvoiceGeneratorClient() {
   );
 }
 
-const inputCls = "w-full rounded-md border border-slate-300 px-3 py-2 text-sm";
+const inputCls = "w-full rounded-md border border-[var(--input-border)] px-3 py-2 text-sm";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-xs font-semibold text-slate-600 mb-1">{label}</span>
+      <span className="block text-xs font-semibold text-[var(--text-sec)] mb-1">{label}</span>
       {children}
     </label>
   );
@@ -316,8 +316,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className="flex justify-between">
-      <span className="text-slate-500">{label}</span>
-      <span className={bold ? "font-extrabold text-slate-900 text-lg" : "font-semibold text-slate-800"}>
+      <span className="text-[var(--text-sec)]">{label}</span>
+      <span className={bold ? "font-extrabold text-[var(--text-main)] text-lg" : "font-semibold text-[var(--text-main)]"}>
         {value}
       </span>
     </div>
@@ -337,7 +337,7 @@ function PartyForm({
 }) {
   return (
     <div>
-      {!hideTitle && <h3 className="text-sm font-bold text-slate-800 mb-2">{title}</h3>}
+      {!hideTitle && <h3 className="text-sm font-bold text-[var(--text-main)] mb-2">{title}</h3>}
       <div className="space-y-2">
         <input
           placeholder="Business / customer name"

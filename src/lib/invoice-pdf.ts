@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { InvoiceData } from "./invoice-types";
-import { formatINR, numberToWordsINR, round2 } from "./gst";
+import { formatINRForPdf, numberToWordsINR, round2 } from "./gst";
 
 export function generateInvoicePdf(data: InvoiceData) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -75,10 +75,10 @@ export function generateInvoicePdf(data: InvoiceData) {
       item.description || "-",
       item.hsn || "-",
       String(item.qty),
-      formatINR(item.rate),
+      formatINRForPdf(item.rate),
       `${item.gstRate}%`,
-      data.isInterState ? formatINR(igst) : `${formatINR(cgst)} + ${formatINR(sgst)}`,
-      formatINR(total),
+      data.isInterState ? formatINRForPdf(igst) : `${formatINRForPdf(cgst)} + ${formatINRForPdf(sgst)}`,
+      formatINRForPdf(total),
     ];
   });
 
@@ -88,7 +88,7 @@ export function generateInvoicePdf(data: InvoiceData) {
     head: [["Description", "HSN/SAC", "Qty", "Rate", "GST", data.isInterState ? "IGST" : "CGST+SGST", "Amount"]],
     body: rows,
     styles: { fontSize: 8, cellPadding: 6 },
-    headStyles: { fillColor: [15, 107, 71] },
+    headStyles: { fillColor: [79, 70, 229] },
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,13 +104,13 @@ export function generateInvoicePdf(data: InvoiceData) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   let ty = finalY;
-  doc.text(`Taxable Value: ${formatINR(taxableTotal)}`, pageWidth - margin, ty, { align: "right" });
+  doc.text(`Taxable Value: ${formatINRForPdf(taxableTotal)}`, pageWidth - margin, ty, { align: "right" });
   ty += 14;
-  doc.text(`Total GST: ${formatINR(taxTotal)}`, pageWidth - margin, ty, { align: "right" });
+  doc.text(`Total GST: ${formatINRForPdf(taxTotal)}`, pageWidth - margin, ty, { align: "right" });
   ty += 16;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text(`Grand Total: ${formatINR(grandTotal)}`, pageWidth - margin, ty, { align: "right" });
+  doc.text(`Grand Total: ${formatINRForPdf(grandTotal)}`, pageWidth - margin, ty, { align: "right" });
 
   ty += 24;
   doc.setFontSize(9);

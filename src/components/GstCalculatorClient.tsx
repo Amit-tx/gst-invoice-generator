@@ -30,170 +30,175 @@ export default function GstCalculatorClient() {
   function updateLine(id: string, patch: Partial<GstLineInput>) {
     setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   }
-
   function addLine() {
     setLines((prev) => [...prev, emptyLine()]);
   }
-
   function removeLine(id: string) {
     setLines((prev) => (prev.length > 1 ? prev.filter((l) => l.id !== id) : prev));
   }
 
+  const formula =
+    mode === "add"
+      ? "Add GST: GST = Base × Rate / 100"
+      : "Remove GST: Base = Total / (1 + Rate / 100)";
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)]">
         GST Calculator
       </h1>
-      <p className="mt-2 text-slate-600">
+      <p className="mt-2 text-[var(--text-sec)]">
         Add GST to a base amount, or find the base amount hidden inside a
         GST-inclusive total — for one item or many.
       </p>
 
-      <div className="mt-6 inline-flex rounded-lg border border-slate-300 p-1 bg-slate-50">
+      {/* Mode toggle */}
+      <div className="mt-6 flex rounded-2xl border border-[var(--border)] bg-[var(--subtotal-bg)] p-1">
         <button
           onClick={() => setMode("add")}
-          className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-            mode === "add" ? "bg-[var(--brand)] text-white" : "text-slate-600"
+          className={`flex-1 rounded-xl py-3 text-center transition-colors ${
+            mode === "add" ? "bg-[var(--card-bg)] shadow-sm" : ""
           }`}
         >
-          Add GST (exclusive → inclusive)
+          <span className="block font-bold text-[var(--text-main)]">Exclusive</span>
+          <span className="block text-xs text-[var(--text-sec)]">Add GST</span>
         </button>
         <button
           onClick={() => setMode("remove")}
-          className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-            mode === "remove" ? "bg-[var(--brand)] text-white" : "text-slate-600"
+          className={`flex-1 rounded-xl py-3 text-center transition-colors ${
+            mode === "remove" ? "bg-[var(--card-bg)] shadow-sm" : ""
           }`}
         >
-          Remove GST (inclusive → exclusive)
+          <span className="block font-bold text-[var(--text-main)]">Inclusive</span>
+          <span className="block text-xs text-[var(--text-sec)]">Remove GST</span>
         </button>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full text-sm min-w-[760px]">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-            <tr>
-              <th className="text-left px-3 py-3 font-semibold">Item</th>
-              <th className="text-left px-3 py-3 font-semibold">
+      {/* Formula box */}
+      <div className="mt-4 rounded-xl border px-4 py-3 text-sm font-medium"
+        style={{
+          background: "var(--formula-bg)",
+          borderColor: "var(--formula-border)",
+          color: "var(--formula-text)",
+        }}
+      >
+        {formula}
+      </div>
+
+      {/* Items */}
+      <div className="mt-6 space-y-4">
+        {lines.map((line, idx) => {
+          const r = results[idx];
+          return (
+            <div
+              key={line.id}
+              className="rounded-2xl border border-[var(--border)] bg-[var(--card-bg)] p-5"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <input
+                  value={line.label}
+                  onChange={(e) => updateLine(line.id, { label: e.target.value })}
+                  placeholder={`Item ${idx + 1}`}
+                  className="text-sm font-semibold text-[var(--text-main)] border-none bg-transparent focus:outline-none"
+                />
+                {lines.length > 1 && (
+                  <button onClick={() => removeLine(line.id)} className="text-[var(--text-sec)] hover:text-red-500">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+
+              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text-sec)] mb-2">
                 {mode === "add" ? "Amount (excl. GST)" : "Amount (incl. GST)"}
-              </th>
-              <th className="text-left px-3 py-3 font-semibold">GST %</th>
-              <th className="text-left px-3 py-3 font-semibold">Supply type</th>
-              <th className="text-right px-3 py-3 font-semibold">Taxable value</th>
-              <th className="text-right px-3 py-3 font-semibold">CGST</th>
-              <th className="text-right px-3 py-3 font-semibold">SGST</th>
-              <th className="text-right px-3 py-3 font-semibold">IGST</th>
-              <th className="text-right px-3 py-3 font-semibold">Total</th>
-              <th className="px-3 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((line, idx) => {
-              const r = results[idx];
-              return (
-                <tr key={line.id} className="border-t border-slate-100">
-                  <td className="px-3 py-2">
-                    <input
-                      value={line.label}
-                      onChange={(e) => updateLine(line.id, { label: e.target.value })}
-                      placeholder={`Item ${idx + 1}`}
-                      className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={line.amount || ""}
-                      onChange={(e) =>
-                        updateLine(line.id, { amount: parseFloat(e.target.value) || 0 })
-                      }
-                      placeholder="0"
-                      className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <select
-                      value={line.rate}
-                      onChange={(e) => updateLine(line.id, { rate: parseFloat(e.target.value) })}
-                      className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                    >
-                      {GST_SLABS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}%
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <select
-                      value={line.isInterState ? "inter" : "intra"}
-                      onChange={(e) =>
-                        updateLine(line.id, { isInterState: e.target.value === "inter" })
-                      }
-                      className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                    >
-                      <option value="intra">Intra-state</option>
-                      <option value="inter">Inter-state</option>
-                    </select>
-                  </td>
-                  <td className="px-3 py-2 text-right font-medium text-slate-700">
-                    {formatINR(r.taxableValue)}
-                  </td>
-                  <td className="px-3 py-2 text-right text-slate-600">{formatINR(r.cgst)}</td>
-                  <td className="px-3 py-2 text-right text-slate-600">{formatINR(r.sgst)}</td>
-                  <td className="px-3 py-2 text-right text-slate-600">{formatINR(r.igst)}</td>
-                  <td className="px-3 py-2 text-right font-bold text-slate-900">
-                    {formatINR(r.totalAmount)}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <button
-                      onClick={() => removeLine(line.id)}
-                      className="text-slate-400 hover:text-red-500"
-                      aria-label="Remove item"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </label>
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--input-border)] px-4 py-3 mb-4">
+                <span className="text-[var(--text-sec)]">₹</span>
+                <input
+                  type="number"
+                  value={line.amount || ""}
+                  onChange={(e) => updateLine(line.id, { amount: parseFloat(e.target.value) || 0 })}
+                  placeholder="0"
+                  className="w-full text-lg font-bold text-[var(--text-main)] focus:outline-none"
+                />
+              </div>
+
+              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text-sec)] mb-2">
+                GST Rate
+              </label>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {GST_SLABS.filter((s) => s > 0).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => updateLine(line.id, { rate: s })}
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+                      line.rate === s
+                        ? "bg-[var(--btn-primary)] text-white"
+                        : "border border-[var(--input-border)] text-[var(--text-main)] hover:bg-[var(--subtotal-bg)]"
+                    }`}
+                  >
+                    {s}%
+                  </button>
+                ))}
+              </div>
+
+              <label className="block text-xs font-bold uppercase tracking-wide text-[var(--text-sec)] mb-2">
+                Supply Type
+              </label>
+              <select
+                value={line.isInterState ? "inter" : "intra"}
+                onChange={(e) => updateLine(line.id, { isInterState: e.target.value === "inter" })}
+                className="w-full rounded-xl border border-[var(--input-border)] px-4 py-2.5 text-sm mb-5"
+              >
+                <option value="intra">Intra-state (CGST + SGST)</option>
+                <option value="inter">Inter-state (IGST)</option>
+              </select>
+
+              <div className="rounded-xl bg-[var(--subtotal-bg)] p-4 space-y-1.5 text-sm">
+                <Row label="Taxable value" value={formatINR(r.taxableValue)} />
+                {line.isInterState ? (
+                  <Row label="IGST" value={formatINR(r.igst)} />
+                ) : (
+                  <>
+                    <Row label="CGST" value={formatINR(r.cgst)} />
+                    <Row label="SGST" value={formatINR(r.sgst)} />
+                  </>
+                )}
+                <div className="pt-1.5 mt-1.5 border-t border-[var(--border)]">
+                  <Row label="Total" value={formatINR(r.totalAmount)} bold />
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <button
         onClick={addLine}
-        className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] hover:text-[var(--brand-dark)]"
+        className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]"
       >
         <Plus size={16} /> Add another item
       </button>
 
-      <div className="mt-8 grid sm:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-slate-200 p-5">
-          <h3 className="text-sm font-semibold text-slate-500 mb-3">Summary</h3>
-          <dl className="space-y-2 text-sm">
-            <Row label="Total taxable value" value={formatINR(totals.taxableValue)} />
-            <Row label="Total CGST" value={formatINR(totals.cgst)} />
-            <Row label="Total SGST" value={formatINR(totals.sgst)} />
-            <Row label="Total IGST" value={formatINR(totals.igst)} />
-            <Row label="Total GST" value={formatINR(totals.totalTax)} />
-          </dl>
-        </div>
-        <div className="rounded-xl bg-emerald-50 p-5 flex flex-col justify-center">
-          <p className="text-sm font-semibold text-[var(--brand-dark)]">Grand total</p>
-          <p className="text-3xl font-extrabold text-[var(--brand-dark)] mt-1">
-            {formatINR(totals.totalAmount)}
+      {lines.length > 1 && (
+        <div className="mt-8 rounded-2xl p-5" style={{ background: "#111827" }}>
+          <p className="text-sm font-semibold text-gray-300">Grand total ({lines.length} items)</p>
+          <p className="text-3xl font-extrabold text-white mt-1">{formatINR(totals.totalAmount)}</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Taxable: {formatINR(totals.taxableValue)} · GST: {formatINR(totals.totalTax)}
           </p>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className="flex justify-between">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="font-semibold text-slate-800">{value}</dd>
+      <span className="text-[var(--text-sec)]">{label}</span>
+      <span className={bold ? "font-extrabold text-[var(--text-main)] text-base" : "font-semibold text-[var(--text-main)]"}>
+        {value}
+      </span>
     </div>
   );
 }

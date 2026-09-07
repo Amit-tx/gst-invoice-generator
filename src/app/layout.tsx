@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import ToolTabsGate from "@/components/ToolTabsGate";
 
 export const metadata: Metadata = {
   title: "GST Calculator & Invoice Generator | GST Suite",
@@ -12,8 +13,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-white text-slate-900">
+      <body className="min-h-full flex flex-col bg-[var(--page-bg)] text-[var(--text-main)]">
         <SiteHeader />
+        <ToolTabsGate />
         <main className="flex-1">{children}</main>
         <SiteFooter />
       </body>

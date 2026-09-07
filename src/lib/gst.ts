@@ -79,6 +79,19 @@ export function formatINR(n: number): string {
   }).format(n);
 }
 
+/**
+ * jsPDF's built-in Helvetica font cannot render the ₹ glyph (it prints a
+ * garbled superscript instead). Use this "Rs." formatter for anything drawn
+ * directly onto a PDF via doc.text(); use formatINR() everywhere else (web UI).
+ */
+export function formatINRForPdf(n: number): string {
+  const formatted = new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  }).format(n);
+  return `Rs. ${formatted}`;
+}
+
 const GSTIN_CODE_MAP = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 /**
