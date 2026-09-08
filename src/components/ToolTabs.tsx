@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 const TOOLS = [
   { href: "/gst-calculator", label: "GST Calculator" },
@@ -12,13 +12,17 @@ const TOOLS = [
 
 export default function ToolTabs() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentMode = searchParams.get("mode");
 
   return (
     <div className="sticky top-16 z-30 bg-[var(--page-bg)]/95 backdrop-blur border-b border-[var(--border)]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <div className="flex gap-2 overflow-x-auto py-3 no-scrollbar">
           {TOOLS.map((tool) => {
-            const isActive = pathname === tool.href.split("?")[0] && !tool.href.includes("remove");
+            const [toolPath, toolQuery] = tool.href.split("?");
+            const toolMode = toolQuery ? new URLSearchParams(toolQuery).get("mode") : null;
+            const isActive = pathname === toolPath && currentMode === toolMode;
             return (
               <Link
                 key={tool.label}

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Trash2, Receipt, Save } from "lucide-react";
-import { GST_SLABS, formatINR, round2 } from "@/lib/gst";
-import { generatePosReceiptPdf, PosItem } from "@/lib/pos-receipt";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, Receipt, Save, Share2 } from "lucide-react";
+import { GST_SLABS, UNITS, formatINR, round2 } from "@/lib/gst";
+import { generatePosReceiptPdf, sharePosReceiptPdf, PosItem, PaymentMode } from "@/lib/pos-receipt";
 
 let idCounter = 1;
 function newId() {
@@ -11,29 +11,31 @@ function newId() {
 }
 
 function emptyItem(): PosItem {
-  return { id: newId(), name: "", qty: 1, price: 0, gstRate: 18 };
+  return { id: newId(), name: "", qty: 1, unit: "pcs", price: 0, gstRate: 18 };
 }
 
-function nextBillNumber() {
-  const stored =
-    typeof window !== "undefined" ? window.localStorage.getItem("pos-last-bill-no") : null;
-  const n = stored ? parseInt(stored, 10) + 1 : 1;
-  return n;
-}
+const SHOP_SETTINGS_KEY = "pos-shop-settings";
+const LAST_BILL_KEY = "pos-last-bill-no";
 
 export default function PosClient() {
   const [shopName, setShopName] = useState("");
   const [shopGstin, setShopGstin] = useState("");
   const [shopAddress, setShopAddress] = useState("");
   const [isInterState, setIsInterState] = useState(false);
-  const [billNo, setBillNo] = useState<number>(() => nextBillNumber());
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
+  const [billNo, setBillNo] = useState<number>(1);
   const [items, setItems] = useState<PosItem[]>([emptyItem()]);
 
-  const shopSettingsKey = "pos-shop-settings";
+  // Runs once after mount (client-only) — localStorage isn't available during
+  // server rendering, so both the bill number and saved shop details load here.
+  useEffect(() => {
+    const storedBill = window.localStorage.getItem(LAST_BILL_KEY);
+    if (storedBill) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time load from localStorage after mount, not a re-render loop
+      setBillNo(parseInt(storedBill, 10) + 1);
+    }
 
-  useMemo(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(shopSettingsKey);
+    const raw = window.localStorage.getItem(SHOP_SETTINGS_KEY);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -44,12 +46,11 @@ export default function PosClient() {
         // ignore corrupted storage
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function saveShopSettings() {
     window.localStorage.setItem(
-      shopSettingsKey,
+      SHOP_SETTINGS_KEY,
       JSON.stringify({ shopName, shopGstin, shopAddress })
     );
   }
@@ -75,19 +76,29 @@ export default function PosClient() {
     setItems((prev) => (prev.length > 1 ? prev.filter((i) => i.id !== id) : prev));
   }
 
-  function handleCheckout() {
+  function currentSaleData() {
     const billNumber = `POS-${String(billNo).padStart(4, "0")}`;
-    generatePosReceiptPdf({
-      shopName,
-      shopGstin,
-      shopAddress,
-      billNumber,
-      isInterState,
-      items,
-    });
-    window.localStorage.setItem("pos-last-bill-no", String(billNo));
+    return { shopName, shopGstin, shopAddress, billNumber, isInterState, paymentMode, items };
+  }
+
+  function finishSale() {
+    window.localStorage.setItem(LAST_BILL_KEY, String(billNo));
     setBillNo((n) => n + 1);
     setItems([emptyItem()]);
+  }
+
+  function handleDownload() {
+    generatePosReceiptPdf(currentSaleData());
+    finishSale();
+  }
+
+  async function handleShare() {
+    const result = await sharePosReceiptPdf(currentSaleData());
+    // Only reset the bill if the receipt actually went somewhere (shared or
+    // downloaded). If the user cancelled the share sheet, keep the bill open.
+    if (result !== "cancelled") {
+      finishSale();
+    }
   }
 
   return (
@@ -138,74 +149,103 @@ export default function PosClient() {
         </div>
       </details>
 
-      <div className="mt-6 flex items-center justify-between">
+      <div className="mt-6 flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-sm font-bold text-[var(--text-main)]">Bill #POS-{String(billNo).padStart(4, "0")}</h3>
+        <div className="flex rounded-full border border-[var(--border)] bg-[var(--subtotal-bg)] p-1">
+          <button
+            onClick={() => setPaymentMode("cash")}
+            className={`rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${
+              paymentMode === "cash" ? "bg-[var(--btn-primary)] text-white" : "text-[var(--text-main)]"
+            }`}
+          >
+            Cash
+          </button>
+          <button
+            onClick={() => setPaymentMode("online")}
+            className={`rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${
+              paymentMode === "online" ? "bg-[var(--btn-primary)] text-white" : "text-[var(--text-main)]"
+            }`}
+          >
+            Online
+          </button>
+        </div>
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-xl border border-[var(--border)]">
-        <table className="w-full text-sm min-w-[600px]">
-          <thead className="bg-[var(--subtotal-bg)] text-[var(--text-sec)] text-xs uppercase">
-            <tr>
-              <th className="text-left px-3 py-3 font-semibold">Item</th>
-              <th className="text-left px-3 py-3 font-semibold">Qty</th>
-              <th className="text-left px-3 py-3 font-semibold">Price</th>
-              <th className="text-left px-3 py-3 font-semibold">GST %</th>
-              <th className="text-right px-3 py-3 font-semibold">Amount</th>
-              <th className="px-3 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {computed.rows.map((row) => (
-              <tr key={row.id} className="border-t border-[var(--border)]">
-                <td className="px-3 py-2">
-                  <input
-                    value={row.name}
-                    onChange={(e) => updateItem(row.id, { name: e.target.value })}
-                    placeholder="Item name"
-                    className="w-36 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                    autoFocus={row.id === items[items.length - 1].id}
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    type="number"
-                    value={row.qty}
-                    onChange={(e) => updateItem(row.id, { qty: parseFloat(e.target.value) || 0 })}
-                    className="w-16 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    type="number"
-                    value={row.price || ""}
-                    onChange={(e) => updateItem(row.id, { price: parseFloat(e.target.value) || 0 })}
-                    placeholder="0"
-                    className="w-24 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <select
-                    value={row.gstRate}
-                    onChange={(e) => updateItem(row.id, { gstRate: parseFloat(e.target.value) })}
-                    className="w-20 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                  >
-                    {GST_SLABS.map((s) => (
-                      <option key={s} value={s}>{s}%</option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-3 py-2 text-right font-semibold text-[var(--text-main)]">
-                  {formatINR(row.total)}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <button onClick={() => removeItem(row.id)} className="text-[var(--text-sec)] hover:text-red-500">
-                    <Trash2 size={16} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mt-3 space-y-3">
+        {computed.rows.map((row, idx) => (
+          <div
+            key={row.id}
+            className="rounded-xl border border-[var(--border)] bg-[var(--card-bg)] p-4"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                value={row.name}
+                onChange={(e) => updateItem(row.id, { name: e.target.value })}
+                placeholder="Item name"
+                className="flex-1 rounded-md border border-[var(--input-border)] px-3 py-2 text-sm font-medium"
+                autoFocus={row.id === items[items.length - 1].id}
+              />
+              <button
+                onClick={() => removeItem(row.id)}
+                className="shrink-0 text-[var(--text-sec)] hover:text-red-500 p-1"
+                aria-label="Remove item"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">Qty</label>
+                <input
+                  type="number"
+                  value={row.qty}
+                  onChange={(e) => updateItem(row.id, { qty: parseFloat(e.target.value) || 0 })}
+                  className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">Unit</label>
+                <select
+                  value={row.unit}
+                  onChange={(e) => updateItem(row.id, { unit: e.target.value })}
+                  className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                >
+                  {UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">Price</label>
+                <input
+                  type="number"
+                  value={row.price || ""}
+                  onChange={(e) => updateItem(row.id, { price: parseFloat(e.target.value) || 0 })}
+                  placeholder="0"
+                  className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">GST %</label>
+                <select
+                  value={row.gstRate}
+                  onChange={(e) => updateItem(row.id, { gstRate: parseFloat(e.target.value) })}
+                  className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                >
+                  {GST_SLABS.map((s) => (
+                    <option key={s} value={s}>{s}%</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-[var(--border)]">
+              <span className="text-xs text-[var(--text-sec)]">Item {idx + 1}</span>
+              <span className="font-bold text-[var(--text-main)]">{formatINR(row.total)}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
       <button
@@ -215,7 +255,7 @@ export default function PosClient() {
         <Plus size={16} /> Add item
       </button>
 
-      <div className="mt-8 grid sm:grid-cols-2 gap-4 items-center">
+      <div className="mt-8 grid sm:grid-cols-2 gap-4 items-stretch">
         <div className="rounded-xl bg-indigo-50 p-5">
           <p className="text-sm font-semibold text-[var(--text-main)]">Grand total</p>
           <p className="text-3xl font-extrabold text-[var(--text-main)] mt-1">
@@ -225,12 +265,20 @@ export default function PosClient() {
             Taxable: {formatINR(computed.taxableTotal)} · GST: {formatINR(computed.taxTotal)}
           </p>
         </div>
-        <button
-          onClick={handleCheckout}
-          className="rounded-lg bg-[var(--btn-primary)] text-white font-semibold px-6 py-4 hover:bg-[var(--btn-primary-hover)] transition-colors inline-flex items-center justify-center gap-2"
-        >
-          <Receipt size={18} /> Checkout & Print Receipt
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleShare}
+            className="rounded-lg bg-[var(--btn-primary)] text-white font-semibold px-6 py-3 hover:bg-[var(--btn-primary-hover)] transition-colors inline-flex items-center justify-center gap-2"
+          >
+            <Share2 size={18} /> Share / Save Receipt
+          </button>
+          <button
+            onClick={handleDownload}
+            className="rounded-lg border border-[var(--input-border)] text-[var(--text-main)] font-semibold px-6 py-3 hover:bg-[var(--subtotal-bg)] transition-colors inline-flex items-center justify-center gap-2"
+          >
+            <Receipt size={18} /> Download PDF
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import autoTable from "jspdf-autotable";
 import { InvoiceData } from "./invoice-types";
 import { formatINRForPdf, numberToWordsINR, round2 } from "./gst";
 
-export function generateInvoicePdf(data: InvoiceData) {
+export function buildInvoiceDoc(data: InvoiceData): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 40;
@@ -61,6 +61,22 @@ export function generateInvoicePdf(data: InvoiceData) {
   doc.text(`GSTIN: ${data.billTo.gstin || "-"}`, col2, py);
   py += 12;
   doc.text(`State: ${data.billTo.state || "-"}`, col2, py);
+  py += 16;
+
+  if (!data.sameAsShipTo) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Ship To:", col2, py);
+    py += 12;
+    doc.setFont("helvetica", "normal");
+    doc.text(data.shipTo.name || "-", col2, py);
+    py += 12;
+    const shipLines = doc.splitTextToSize(data.shipTo.address || "", 200);
+    doc.text(shipLines, col2, py);
+    py += shipLines.length * 11 + 2;
+    doc.text(`GSTIN: ${data.shipTo.gstin || "-"}`, col2, py);
+    py += 12;
+    doc.text(`State: ${data.shipTo.state || "-"}`, col2, py);
+  }
 
   y = Math.max(y, py) + 24;
 
@@ -74,7 +90,7 @@ export function generateInvoicePdf(data: InvoiceData) {
     return [
       item.description || "-",
       item.hsn || "-",
-      String(item.qty),
+      `${item.qty} ${item.unit}`,
       formatINRForPdf(item.rate),
       `${item.gstRate}%`,
       data.isInterState ? formatINRForPdf(igst) : `${formatINRForPdf(cgst)} + ${formatINRForPdf(sgst)}`,
@@ -138,5 +154,38 @@ export function generateInvoicePdf(data: InvoiceData) {
     doc.text(noteLines, margin, ty);
   }
 
+  return doc;
+}
+
+/** Generates the invoice PDF and triggers a browser download. */
+export function generateInvoicePdf(data: InvoiceData) {
+  const doc = buildInvoiceDoc(data);
   doc.save(`Invoice-${data.invoiceNumber || "draft"}.pdf`);
+}
+
+/**
+ * Opens the device's native share sheet (WhatsApp, Save to Files, etc.) with
+ * the invoice PDF. Falls back to a plain download if the Web Share API with
+ * file support isn't available.
+ */
+export async function shareInvoicePdf(data: InvoiceData): Promise<"shared" | "downloaded" | "cancelled"> {
+  const doc = buildInvoiceDoc(data);
+  const fileName = `Invoice-${data.invoiceNumber || "draft"}.pdf`;
+  const blob = doc.output("blob");
+  const file = new File([blob], fileName, { type: "application/pdf" });
+
+  const nav = typeof navigator !== "undefined" ? navigator : null;
+  if (nav?.share && nav.canShare?.({ files: [file] })) {
+    try {
+      await nav.share({ files: [file], title: fileName, text: `Invoice ${data.invoiceNumber}` });
+      return "shared";
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return "cancelled";
+      }
+    }
+  }
+
+  doc.save(fileName);
+  return "downloaded";
 }

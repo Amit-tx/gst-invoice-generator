@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
   GST_SLABS,
@@ -20,9 +21,39 @@ function emptyLine(): GstLineInput {
   return { id: newId(), label: "", amount: 0, rate: 18, isInterState: false };
 }
 
-export default function GstCalculatorClient() {
-  const [mode, setMode] = useState<GstMode>("add");
-  const [lines, setLines] = useState<GstLineInput[]>([emptyLine()]);
+interface GstCalculatorClientProps {
+  /** Overrides the default "GST Calculator" H1 for SEO landing pages. */
+  heading?: string;
+  /** Overrides the default intro paragraph. */
+  intro?: string;
+  /** Pre-selects a GST rate on first item (e.g. 18 for the /18-gst-calculator page). */
+  initialRate?: number;
+  /** Pre-selects Add/Remove mode, overriding the ?mode= query param if both are present. */
+  initialMode?: GstMode;
+}
+
+export default function GstCalculatorClient({
+  heading = "GST Calculator",
+  intro = "Add GST to a base amount, or find the base amount hidden inside a GST-inclusive total — for one item or many.",
+  initialRate,
+  initialMode,
+}: GstCalculatorClientProps) {
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<GstMode>(initialMode ?? "add");
+  const [lines, setLines] = useState<GstLineInput[]>([
+    initialRate ? { ...emptyLine(), rate: initialRate } : emptyLine(),
+  ]);
+
+  // "Reverse GST" tab links here with ?mode=remove — pick that up on load
+  // and whenever the query param changes (e.g. clicking the tab again).
+  // A page-level initialMode (e.g. the dedicated reverse-gst-calculator page)
+  // takes precedence and skips this sync.
+  useEffect(() => {
+    if (!initialMode && searchParams.get("mode") === "remove") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing mode from the URL query param is the intended behavior here
+      setMode("remove");
+    }
+  }, [searchParams, initialMode]);
 
   const results = useMemo(() => calculateAll(lines, mode), [lines, mode]);
   const totals = useMemo(() => summarize(results), [results]);
@@ -45,11 +76,10 @@ export default function GstCalculatorClient() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)]">
-        GST Calculator
+        {heading}
       </h1>
       <p className="mt-2 text-[var(--text-sec)]">
-        Add GST to a base amount, or find the base amount hidden inside a
-        GST-inclusive total — for one item or many.
+        {intro}
       </p>
 
       {/* Mode toggle */}

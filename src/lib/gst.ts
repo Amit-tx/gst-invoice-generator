@@ -19,6 +19,10 @@ export interface GstLineResult extends GstLineInput {
 
 export const GST_SLABS = [0, 0.25, 3, 5, 12, 18, 28] as const;
 
+export const UNITS = [
+  "pcs", "kg", "g", "litre", "ml", "box", "packet", "dozen", "meter", "set",
+] as const;
+
 export function calculateLine(input: GstLineInput, mode: GstMode): GstLineResult {
   const rate = input.rate;
   let taxableValue: number;

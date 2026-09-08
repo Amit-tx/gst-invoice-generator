@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Upload, Download, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Upload, Download, AlertCircle, Share2 } from "lucide-react";
 import { INDIAN_STATES, InvoiceData, InvoiceItem, Party } from "@/lib/invoice-types";
-import { GST_SLABS, formatINR, round2, gstinError, numberToWordsINR } from "@/lib/gst";
-import { generateInvoicePdf } from "@/lib/invoice-pdf";
+import { GST_SLABS, UNITS, formatINR, round2, gstinError, numberToWordsINR } from "@/lib/gst";
+import { generateInvoicePdf, shareInvoicePdf } from "@/lib/invoice-pdf";
 
 let idCounter = 1;
 function newId() {
@@ -16,7 +16,7 @@ function emptyParty(): Party {
 }
 
 function emptyItem(): InvoiceItem {
-  return { id: newId(), description: "", hsn: "", qty: 1, rate: 0, gstRate: 18 };
+  return { id: newId(), description: "", hsn: "", qty: 1, unit: "pcs", rate: 0, gstRate: 18 };
 }
 
 function todayStr() {
@@ -80,8 +80,8 @@ export default function InvoiceGeneratorClient() {
     reader.readAsDataURL(file);
   }
 
-  function handleDownload() {
-    const data: InvoiceData = {
+  function currentInvoiceData(): InvoiceData {
+    return {
       invoiceNumber,
       invoiceDate,
       dueDate,
@@ -95,7 +95,14 @@ export default function InvoiceGeneratorClient() {
       notes,
       bankDetails,
     };
-    generateInvoicePdf(data);
+  }
+
+  function handleDownload() {
+    generateInvoicePdf(currentInvoiceData());
+  }
+
+  async function handleShare() {
+    await shareInvoicePdf(currentInvoiceData());
   }
 
   return (
@@ -191,77 +198,88 @@ export default function InvoiceGeneratorClient() {
       {/* Items table */}
       <section className="mt-10">
         <h3 className="text-sm font-bold text-[var(--text-main)] mb-3">Line items</h3>
-        <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
-          <table className="w-full text-sm min-w-[760px]">
-            <thead className="bg-[var(--subtotal-bg)] text-[var(--text-sec)] text-xs uppercase">
-              <tr>
-                <th className="text-left px-3 py-3 font-semibold">Description</th>
-                <th className="text-left px-3 py-3 font-semibold">HSN/SAC</th>
-                <th className="text-left px-3 py-3 font-semibold">Qty</th>
-                <th className="text-left px-3 py-3 font-semibold">Rate</th>
-                <th className="text-left px-3 py-3 font-semibold">GST %</th>
-                <th className="text-right px-3 py-3 font-semibold">Amount</th>
-                <th className="px-3 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {computed.rows.map((row) => (
-                <tr key={row.id} className="border-t border-[var(--border)]">
-                  <td className="px-3 py-2">
-                    <input
-                      value={row.description}
-                      onChange={(e) => updateItem(row.id, { description: e.target.value })}
-                      placeholder="Item / service"
-                      className="w-40 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      value={row.hsn}
-                      onChange={(e) => updateItem(row.id, { hsn: e.target.value })}
-                      placeholder="0000"
-                      className="w-20 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={row.qty}
-                      onChange={(e) => updateItem(row.id, { qty: parseFloat(e.target.value) || 0 })}
-                      className="w-16 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      value={row.rate}
-                      onChange={(e) => updateItem(row.id, { rate: parseFloat(e.target.value) || 0 })}
-                      className="w-24 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <select
-                      value={row.gstRate}
-                      onChange={(e) => updateItem(row.id, { gstRate: parseFloat(e.target.value) })}
-                      className="w-20 rounded-md border border-[var(--input-border)] px-2 py-1.5 text-sm"
-                    >
-                      {GST_SLABS.map((s) => (
-                        <option key={s} value={s}>{s}%</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-3 py-2 text-right font-semibold text-[var(--text-main)]">
-                    {formatINR(row.total)}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <button onClick={() => removeItem(row.id)} className="text-[var(--text-sec)] hover:text-red-500">
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          {computed.rows.map((row, idx) => (
+            <div
+              key={row.id}
+              className="rounded-xl border border-[var(--border)] bg-[var(--card-bg)] p-4"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  value={row.description}
+                  onChange={(e) => updateItem(row.id, { description: e.target.value })}
+                  placeholder="Item / service"
+                  className="flex-1 rounded-md border border-[var(--input-border)] px-3 py-2 text-sm font-medium"
+                />
+                <button
+                  onClick={() => removeItem(row.id)}
+                  className="shrink-0 text-[var(--text-sec)] hover:text-red-500 p-1"
+                  aria-label="Remove item"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">HSN/SAC</label>
+                  <input
+                    value={row.hsn}
+                    onChange={(e) => updateItem(row.id, { hsn: e.target.value })}
+                    placeholder="0000"
+                    className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">Qty</label>
+                  <input
+                    type="number"
+                    value={row.qty}
+                    onChange={(e) => updateItem(row.id, { qty: parseFloat(e.target.value) || 0 })}
+                    className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">Unit</label>
+                  <select
+                    value={row.unit}
+                    onChange={(e) => updateItem(row.id, { unit: e.target.value })}
+                    className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                  >
+                    {UNITS.map((u) => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">Rate</label>
+                  <input
+                    type="number"
+                    value={row.rate}
+                    onChange={(e) => updateItem(row.id, { rate: parseFloat(e.target.value) || 0 })}
+                    className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[var(--text-sec)] mb-1">GST %</label>
+                  <select
+                    value={row.gstRate}
+                    onChange={(e) => updateItem(row.id, { gstRate: parseFloat(e.target.value) })}
+                    className="w-full rounded-md border border-[var(--input-border)] px-2 py-2 text-sm"
+                  >
+                    {GST_SLABS.map((s) => (
+                      <option key={s} value={s}>{s}%</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-2 border-t border-[var(--border)]">
+                <span className="text-xs text-[var(--text-sec)]">Item {idx + 1}</span>
+                <span className="font-bold text-[var(--text-main)]">{formatINR(row.total)}</span>
+              </div>
+            </div>
+          ))}
         </div>
         <button
           onClick={addItem}
@@ -291,12 +309,20 @@ export default function InvoiceGeneratorClient() {
             {numberToWordsINR(computed.grandTotal)}
           </p>
         </div>
-        <button
-          onClick={handleDownload}
-          className="rounded-lg bg-[var(--btn-primary)] text-white font-semibold px-6 py-4 hover:bg-[var(--btn-primary-hover)] transition-colors inline-flex items-center justify-center gap-2 h-fit"
-        >
-          <Download size={18} /> Download PDF Invoice
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleShare}
+            className="rounded-lg bg-[var(--btn-primary)] text-white font-semibold px-6 py-3 hover:bg-[var(--btn-primary-hover)] transition-colors inline-flex items-center justify-center gap-2"
+          >
+            <Share2 size={18} /> Share / Save Invoice
+          </button>
+          <button
+            onClick={handleDownload}
+            className="rounded-lg border border-[var(--input-border)] text-[var(--text-main)] font-semibold px-6 py-3 hover:bg-[var(--subtotal-bg)] transition-colors inline-flex items-center justify-center gap-2"
+          >
+            <Download size={18} /> Download PDF
+          </button>
+        </div>
       </section>
     </div>
   );

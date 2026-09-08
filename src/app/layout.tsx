@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -15,7 +16,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-[var(--page-bg)] text-[var(--text-main)]">
         <SiteHeader />
-        <ToolTabsGate />
+        <Suspense fallback={null}>
+          <ToolTabsGate />
+        </Suspense>
         <main className="flex-1">{children}</main>
         <SiteFooter />
       </body>

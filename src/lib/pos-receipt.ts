@@ -5,9 +5,12 @@ export interface PosItem {
   id: string;
   name: string;
   qty: number;
+  unit: string;
   price: number;
   gstRate: number;
 }
+
+export type PaymentMode = "cash" | "online";
 
 export interface PosSaleData {
   shopName: string;
@@ -15,11 +18,12 @@ export interface PosSaleData {
   shopAddress: string;
   billNumber: string;
   isInterState: boolean;
+  paymentMode: PaymentMode;
   items: PosItem[];
 }
 
-/** Generates a narrow, thermal-receipt-style PDF (80mm width) for quick billing. */
-export function generatePosReceiptPdf(data: PosSaleData) {
+/** Builds the receipt PDF document (shared by download and share). */
+function buildReceiptDoc(data: PosSaleData): jsPDF {
   const widthMm = 80;
   const marginMm = 4;
   const doc = new jsPDF({ unit: "mm", format: [widthMm, 200] });
@@ -51,6 +55,8 @@ export function generatePosReceiptPdf(data: PosSaleData) {
   doc.setFontSize(7);
   doc.text(`Bill #: ${data.billNumber}`, marginMm, y);
   doc.text(new Date().toLocaleString("en-IN"), widthMm - marginMm, y, { align: "right" });
+  y += 4;
+  doc.text(`Payment: ${data.paymentMode === "online" ? "Online" : "Cash"}`, marginMm, y);
   y += 5;
 
   doc.line(marginMm, y, widthMm - marginMm, y);
@@ -76,7 +82,7 @@ export function generatePosReceiptPdf(data: PosSaleData) {
 
     const nameLines = doc.splitTextToSize(item.name || "Item", 38);
     doc.text(nameLines, marginMm, y);
-    doc.text(String(item.qty), widthMm - marginMm - 24, y, { align: "right" });
+    doc.text(`${item.qty} ${item.unit}`, widthMm - marginMm - 24, y, { align: "right" });
     doc.text(formatINRForPdf(round2(taxable + tax)), widthMm - marginMm, y, { align: "right" });
     y += Math.max(nameLines.length, 1) * 3.6;
   }
@@ -105,5 +111,43 @@ export function generatePosReceiptPdf(data: PosSaleData) {
   doc.setFont("helvetica", "italic");
   doc.text("Thank you for your business!", centerX, y, { align: "center" });
 
+  return doc;
+}
+
+/** Generates a narrow, thermal-receipt-style PDF (80mm width) and triggers a browser download. */
+export function generatePosReceiptPdf(data: PosSaleData) {
+  const doc = buildReceiptDoc(data);
   doc.save(`Receipt-${data.billNumber || "draft"}.pdf`);
+}
+
+/**
+ * Opens the device's native share sheet (WhatsApp, Save to Gallery/Files, etc.)
+ * with the receipt PDF. Falls back to a plain download if the Web Share API
+ * with file support isn't available on this browser/device.
+ */
+export async function sharePosReceiptPdf(data: PosSaleData): Promise<"shared" | "downloaded" | "cancelled"> {
+  const doc = buildReceiptDoc(data);
+  const fileName = `Receipt-${data.billNumber || "draft"}.pdf`;
+  const blob = doc.output("blob");
+  const file = new File([blob], fileName, { type: "application/pdf" });
+
+  const nav = typeof navigator !== "undefined" ? navigator : null;
+  if (nav?.share && nav.canShare?.({ files: [file] })) {
+    try {
+      await nav.share({
+        files: [file],
+        title: fileName,
+        text: `Receipt ${data.billNumber}`,
+      });
+      return "shared";
+    } catch (err) {
+      // AbortError = user cancelled the share sheet; anything else, fall back to download.
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return "cancelled";
+      }
+    }
+  }
+
+  doc.save(fileName);
+  return "downloaded";
 }

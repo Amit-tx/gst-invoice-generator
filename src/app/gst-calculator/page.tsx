@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import GstCalculatorClient from "@/components/GstCalculatorClient";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function GstCalculatorPage() {
-  return <GstCalculatorClient />;
+  return (
+    <Suspense fallback={null}>
+      <GstCalculatorClient />
+    </Suspense>
+  );
 }

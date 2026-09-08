@@ -3,6 +3,7 @@ export interface InvoiceItem {
   description: string;
   hsn: string;
   qty: number;
+  unit: string;
   rate: number;
   gstRate: number;
 }
