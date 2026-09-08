@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const BASE_URL = "https://gst-invoice-generator.vercel.app";
+const BASE_URL = "https://gst-invoice-generator-iota.vercel.app";
 
 export default function robots(): MetadataRoute.Robots {
   return {
